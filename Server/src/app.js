@@ -18,6 +18,12 @@ app.use('/admin',adminRoutes)
 import userRoutes from './routes/User.routes.js'
 app.use('/user', userRoutes)
 
+import taskRoutes from './routes/task.routes.js'
+app.use('/task', taskRoutes)
+
+import commentRoutes from './routes/comment.routes.js'
+app.use('/comment', commentRoutes)
+
 
 
 

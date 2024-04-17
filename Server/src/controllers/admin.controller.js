@@ -4,7 +4,8 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import jwt from 'jsonwebtoken';
 import { User } from "../models/User.models.js";
-import { sendUserRegistrationUser } from "../utils/SendEmail.js";
+import { deleteUserMail, sendUserRegistrationUser } from "../utils/SendEmail.js";
+import { Task } from "../models/Task.models.js";
 
 const adminLoginController = asyncHandler(async (req, res) => {
     const { username, password } = req.body;
@@ -124,16 +125,60 @@ const deleteProfile = asyncHandler(async (req, res) => {
         throw new ApiError(400, "User not found");
     }
 
-    const deletedUser = await User.findByIdAndDelete(user._id);
+    const deletedUser = await User.findByIdAndDelete(user._id).select("-password -otp -refreshToken");
+    deleteUserMail(user)
     return res.status(200).json(new ApiResponse(200, deletedUser, "User deleted successfully"));
 
 
 
 })
 
+const getAllTask = asyncHandler(async (req, res) => {
+    if(req.user.username!==process.env.ADMIN_NAME){
+        throw new ApiError(401, "Unauthorized access");
+    }
+    const tasks = await Task.aggregate([
+        {
+            $lookup: {
+                from: "users",
+                localField: "assignedTo",
+                foreignField: "_id",
+                as: "assignedTo"
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "createdBy",
+                foreignField: "_id",
+                as: "createdBy"
+            }
+        },{
+            $addFields: {
+                assignedTo: {
+                    $first: "$assignedTo"
+                },
+                createdBy: {
+                    $first: "$createdBy"
+                }
+            }
+        },{
+            $lookup: {
+                from: "comments",
+                localField: "_id",
+                foreignField: "taskId",
+                as: "comments"
+            }
+        }
+
+    ])
+    return res.status(200).json(new ApiResponse(200, tasks, "Tasks retrieved successfully")); 
+});
+
 export { adminLoginController,
     adminLogoutController,
     registerUser,
     getAllUsers,
     updateProfile,
-    deleteProfile };
+    deleteProfile,
+    getAllTask};

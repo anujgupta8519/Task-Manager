@@ -4,10 +4,10 @@ function Header() {
     return (
 
 
-        <nav className="bg-white border-gray-200 dark:bg-gray-900">
+        <nav className=" border-gray-200 dark:bg-gray-900">
             <div className="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
                 <a href="#" className="flex items-center space-x-3 rtl:space-x-reverse">
-                    <img src="https://bcassetcdn.com/social/id6brd5mjq/preview.png" className="h-10" style={{ mixBlendMode: 'hard-light' }} alt="Task Manager Logo" />
+                    <img src="https://bcassetcdn.com/social/id6brd5mjq/preview.png" className="h-10"  alt="Task Manager Logo" />
                     <span className="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">Task Manager</span>
                 </a>
                 <div className="flex md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse">

@@ -9,12 +9,12 @@ import { Task } from "../models/Task.models.js";
 const createTask = asyncHandler(async (req, res) => {
 
     const { title, description,  priority, assignedTo } = req.body;
-    const user = User.findById(req.user?._id);
+    const user = await User.findById(req.user?._id);
+
 
     if (!user) {
         throw new ApiError(400, "User not found");
     }
-
     if (user.role !=="Manager") {
         
         throw new ApiError(400, "Unauthorized access");
@@ -46,6 +46,12 @@ const createTask = asyncHandler(async (req, res) => {
         
     }
 
+    const assignto = await User.findById(assignedTo);
+    if (assignto.role !=="Developer") {
+        
+        throw new ApiError(400, "Invalid assignedTo");
+    }
+
     const createdTask = await Task.create({
         title,
         description,
@@ -59,7 +65,7 @@ const createTask = asyncHandler(async (req, res) => {
 
 const markasCompleted = asyncHandler(async (req, res) => {
 
-    const user = User.findById(req.user?._id);
+    const user = await  User.findById(req.user?._id);
     if (!user) {
         
         throw new ApiError(400, "User not found");
@@ -89,7 +95,7 @@ const markasCompleted = asyncHandler(async (req, res) => {
 
 const deletetask = asyncHandler(async (req, res) => {
 
-    const user = User.findById(req.user?._id);
+    const user = await User.findById(req.user?._id);
 
     if (!user) {
         throw new ApiError(400, "User not found");
@@ -107,9 +113,9 @@ const deletetask = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Task not found");
     }
 
-    await Task.findByIdAndDelete(req.params.id);
+    const deletedTask =  await Task.findByIdAndDelete(req.params.id);
 
-    return res.status(200).json(new ApiResponse(200, null, "Task deleted successfully"));
+    return res.status(200).json(new ApiResponse(200, deletedTask, "Task deleted successfully"));
 
 });
 
@@ -131,7 +137,19 @@ const gettask = asyncHandler(async (req, res) => {
                 from: "users",
                 localField: "assignedTo",
                 foreignField: "_id",
-                as: "assignedTo"
+                as: "assignedTo",
+                pipeline: [
+
+                    {
+                        $project: { 
+                            _id: 1,
+                            name: 1,
+                            email: 1,
+                            role: 1,
+                            mobileNumber:1
+                        }
+                    }
+                ]
             }
         },
         {
@@ -145,7 +163,19 @@ const gettask = asyncHandler(async (req, res) => {
                 from: "users",
                 localField: "createdBy",
                 foreignField: "_id",
-                as: "createdBy"
+                as: "createdBy",
+                pipeline: [
+
+                    {
+                        $project: { 
+                            _id: 1,
+                            name: 1,
+                            email: 1,
+                            role: 1,
+                            mobileNumber:1
+                        }
+                    }
+                ]
             }
         },
         {
@@ -165,7 +195,7 @@ const gettask = asyncHandler(async (req, res) => {
         }
     ]);
 
-    if (!task) {
+    if (task.length==0) {
         throw new ApiError(400, "Task not found");
     }
 
@@ -175,7 +205,7 @@ const gettask = asyncHandler(async (req, res) => {
 
 const updatetask = asyncHandler(async (req, res) => {
 
-    const user = User.findById(req.user?._id);
+    const user = await User.findById(req.user?._id);
 
     const {title, description, priority, assignedTo} = req.body;
 
@@ -215,8 +245,80 @@ const updatetask = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Task not found");
     }
 
-    const updatedTask = await Task.findByIdAndUpdate(req.params.id, { title, description, priority, assignedTo }, { new: true });
-    return res.status(200).json(new ApiResponse(200, updatedTask, "Task updated successfully"));
+    if (task.completed) {
+        throw new ApiError(400, "Task already completed"); 
+    }
+
+    await Task.findByIdAndUpdate(req.params.id, { title, description, priority, assignedTo }, { new: true });
+    const updatedtask = await Task.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.params.id)
+            }
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "assignedTo",
+                foreignField: "_id",
+                as: "assignedTo",
+                pipeline: [
+
+                    {
+                        $project: { 
+                            _id: 1,
+                            name: 1,
+                            email: 1,
+                            role: 1,
+                            mobileNumber:1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields: {
+                assignedTo: {
+                    $first: "$assignedTo"
+                }
+            }
+        },{
+            $lookup: {
+                from: "users",
+                localField: "createdBy",
+                foreignField: "_id",
+                as: "createdBy",
+                pipeline: [
+
+                    {
+                        $project: { 
+                            _id: 1,
+                            name: 1,
+                            email: 1,
+                            role: 1,
+                            mobileNumber:1
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            $addFields: {
+                createdBy: {
+                    $first: "$createdBy"
+                }
+            }
+        },
+        {
+            $lookup: {
+                from: "comments",
+                localField: "_id",
+                foreignField: "taskid",
+                as: "comments"
+            }
+        }
+    ]);
+    return res.status(200).json(new ApiResponse(200, updatedtask, "Task updated successfully"));
 });
 
 

@@ -24,6 +24,19 @@ const genrateAndsendOTP = asyncHandler(async (req, res) => {
 
     const OTP = genrateOTP();
     const userwithotp = await User.findByIdAndUpdate(user._id, { otp: OTP }, { new: true }).select("-password -otp -refreshToken");
+
+    setTimeout(async () => {
+        try {
+            await User.findByIdAndUpdate(user._id, { otp: null }, { new: true });
+            console.log('OTP expired');
+        } catch (error) {
+            console.error('Error invalidating OTP:', error);
+        }
+    }, 600000); // 10 minutes
+
+
+
+  
     sendOTP(email, OTP);
     return res.status(200).json(new ApiResponse(200, userwithotp, "OTP sent successfully"));
 })
@@ -108,9 +121,12 @@ const loginWithPassword = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Password not set please set the password first");
     }
 
-    if (user.password !== password) {
+    const  ispasswordCorrect = await user.comparePassword(password);
+    if (!ispasswordCorrect) {
         throw new ApiError(400, "Invalid password");
     }
+
+   
 
     const accessToken = user.genrateAccessToken();
     const refreshToken = user.genrateRefreshToken();
@@ -123,7 +139,7 @@ const loginWithPassword = asyncHandler(async (req, res) => {
         secure: true,
     }
     return res.status(200)
-    .cookies("refreshToken", refreshToken, options)
+    .cookie("refreshToken", refreshToken, options)
     .cookie("accessToken", accessToken, options)
     .json(new ApiResponse(200, {loggedinUser: updatedUser, accessToken, refreshToken }, "Login successful"));
 
@@ -244,10 +260,10 @@ const updatePassword = asyncHandler(async (req, res) => {
     if (password !== confirmPassword) {
         throw new ApiError(400, "Passwords do not match");
     }
+    const bycrptpassword = await user.encryptPassword(password);
 
 
-
-    const updatedUser = await User.findByIdAndUpdate(user._id, { password: password , otp: null}, { new: true }).select("-password -otp -refreshToken");
+    const updatedUser = await User.findByIdAndUpdate(user._id, { password: bycrptpassword , otp: null}, { new: true }).select("-password -otp -refreshToken");
 
     return res.status(200).json(new ApiResponse(200, { user: updatedUser }, "Password updated successfully"));
 })
