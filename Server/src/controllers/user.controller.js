@@ -11,6 +11,11 @@ import { Task } from "../models/Task.models.js";
 
 
 const genrateAndsendOTP = asyncHandler(async (req, res) => {
+    
+
+
+    console.log(req);
+
     const { email } = req.body;
 
     if (!email || !email.match(/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/)) {
@@ -103,6 +108,7 @@ const setPassword = asyncHandler(async (req, res) => {
 const loginWithPassword = asyncHandler(async (req, res) => {
 
     const { email, password } = req.body;
+    console.log(email, password);
 
     if (!email || !email.match(/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/)) {
         throw new ApiError(400, "Invalid email");
@@ -148,6 +154,7 @@ const loginWithPassword = asyncHandler(async (req, res) => {
 const loginWithOTP = asyncHandler(async (req, res) => {
 
     const { email, otp } = req.body;
+    console.log(email, otp);
 
     if (!email || !email.match(/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/)) {
         throw new ApiError(400, "Invalid email");
@@ -175,6 +182,8 @@ const loginWithOTP = asyncHandler(async (req, res) => {
         httpOnly: true,
         secure: true,
     }
+
+    console.log("Login successfull",updatedUser);
 
     return res.status(200)
     .cookie("refreshToken", refreshToken, options)
@@ -341,10 +350,43 @@ const getcreatedTask = asyncHandler(async (req, res) => {
         },
         {
             $lookup: {
-                from:"comments",
-                localField:"_id",
-                foreignField:"taskId",
-                as:"comments"
+                from: "comments",
+                localField: "_id",
+                foreignField: "taskid",
+                as: "comments",
+                pipeline: [
+
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "commentBy",
+                            foreignField: "_id",
+                            as: "commentBy",
+                            pipeline: [
+                                {
+                                    $project: { 
+                                        _id: 1,
+                                        name: 1,
+                                        email: 1,
+                                        role: 1,
+                                        mobileNumber:1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+
+                    {
+                        $addFields: {
+                            commentBy: {    
+                                $first: "$commentBy"
+                            }
+                        }
+                    },
+                    {
+                        $sort: { createdAt: -1 }
+                    }
+                ]
             }
         }
         
@@ -407,18 +449,51 @@ const getAssigntomeTask = asyncHandler(async (req, res) => {
 
             }
         },
-        {
+           {
             $lookup: {
-                from:"comments",
-                localField:"_id",
-                foreignField:"taskId",
-                as:"comments"
+                from: "comments",
+                localField: "_id",
+                foreignField: "taskid",
+                as: "comments",
+                pipeline: [
+
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "commentBy",
+                            foreignField: "_id",
+                            as: "commentBy",
+                            pipeline: [
+                                {
+                                    $project: { 
+                                        _id: 1,
+                                        name: 1,
+                                        email: 1,
+                                        role: 1,
+                                        mobileNumber:1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+
+                    {
+                        $addFields: {
+                            commentBy: {    
+                                $first: "$commentBy"
+                            }
+                        }
+                    },
+                    {
+                        $sort: { createdAt: -1 }
+                    }
+                ]
             }
         }
 
     ])
 
-    if (!task) {
+    if (task.length==0) {
         throw new ApiError(400, "Task not found");
     }
 
@@ -429,13 +504,36 @@ const getAssigntomeTask = asyncHandler(async (req, res) => {
 
 const getCurrentUser = asyncHandler(async (req, res) => {
 
-    const user = await User.findById(req.user?._id);
+    const user = await User.findById(req.user?._id).select("-password -otp -refreshToken");
 
     if (!user) {
         throw new ApiError(400, "User not found");
     }
 
     return res.status(200).json(new ApiResponse(200, user, "User retrieved successfully"));
+})
+
+const getAllDeveloper = asyncHandler(async (req, res) => {
+
+    const user = await User.findById(req.user?._id);
+
+    if (!user) {
+        throw new ApiError(400, "User not found");
+    }
+
+    if (user.role !=="Manager") {
+        throw new ApiError(400, "Unauthorized access");
+        
+    }
+
+    const users = await User.find({ role: "Developer" });
+
+    if (!users && users.length === 0) {
+        throw new ApiError(400, "Developers not found");
+    }
+
+    return res.status(200).json(new ApiResponse(200, users, "Users retrieved successfully"));
+
 })
 
 
@@ -448,5 +546,6 @@ export { genrateAndsendOTP,
       logoutUser,
        getcreatedTask, 
        getAssigntomeTask,
-       getCurrentUser}
+       getCurrentUser,
+       getAllDeveloper}
 

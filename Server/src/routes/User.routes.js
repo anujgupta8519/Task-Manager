@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { auth } from "../middlewares/auth.middlewares.js";
-import { genrateAndsendOTP, getAssigntomeTask, getCurrentUser, getcreatedTask, loginWithOTP, loginWithPassword, logoutUser, refreshAccessToken, setPassword, updatePassword } from "../controllers/user.controller.js";
+import { genrateAndsendOTP, getAllDeveloper, getAssigntomeTask, getCurrentUser, getcreatedTask, loginWithOTP, loginWithPassword, logoutUser, refreshAccessToken, setPassword, updatePassword } from "../controllers/user.controller.js";
 
 
 const router = Router();
 
-router.route('/genrateOTP').get(genrateAndsendOTP)
+router.route('/genrateOTP').post(genrateAndsendOTP)
 
 router.route('/login-with-password').post(loginWithPassword)
 router.route('/set-password').patch(setPassword)
@@ -16,6 +16,9 @@ router.route('/logout').post(auth, logoutUser)
 router.route('/getcreatedTask').get(auth, getcreatedTask)
 router.route('/getAssigntomeTask').get(auth, getAssigntomeTask)
 router.route('/getCurrentUser').get(auth, getCurrentUser)
+router.route('/getAllDeveloper').get(auth, getAllDeveloper)
+
+
 
 
 

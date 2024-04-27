@@ -4,11 +4,14 @@ import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/User.models.js";
 import mongoose from "mongoose";
 import { Task } from "../models/Task.models.js";
+import { Comment } from "../models/Comment.models.js";
 
 
 const createTask = asyncHandler(async (req, res) => {
 
+
     const { title, description,  priority, assignedTo } = req.body;
+    console.log(req.body)
     const user = await User.findById(req.user?._id);
 
 
@@ -59,6 +62,7 @@ const createTask = asyncHandler(async (req, res) => {
         createdBy: user._id,
         assignedTo
     });
+    console.log(createdTask)
     return res.status(201).json(new ApiResponse(201, createdTask, "Task created successfully"));
 
 });
@@ -114,6 +118,8 @@ const deletetask = asyncHandler(async (req, res) => {
     }
 
     const deletedTask =  await Task.findByIdAndDelete(req.params.id);
+
+    await Comment.deleteMany({ taskid: deletedTask._id });
 
     return res.status(200).json(new ApiResponse(200, deletedTask, "Task deleted successfully"));
 
@@ -174,7 +180,8 @@ const gettask = asyncHandler(async (req, res) => {
                             role: 1,
                             mobileNumber:1
                         }
-                    }
+                    },
+                 
                 ]
             }
         },
@@ -190,7 +197,40 @@ const gettask = asyncHandler(async (req, res) => {
                 from: "comments",
                 localField: "_id",
                 foreignField: "taskid",
-                as: "comments"
+                as: "comments",
+                pipeline: [
+
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "commentBy",
+                            foreignField: "_id",
+                            as: "commentBy",
+                            pipeline: [
+                                {
+                                    $project: { 
+                                        _id: 1,
+                                        name: 1,
+                                        email: 1,
+                                        role: 1,
+                                        mobileNumber:1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+
+                    {
+                        $addFields: {
+                            commentBy: {    
+                                $first: "$commentBy"
+                            }
+                        }
+                    },
+                    {
+                        $sort: { createdAt: -1 }
+                    }
+                ]
             }
         }
     ]);

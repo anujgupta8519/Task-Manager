@@ -9,6 +9,7 @@ import { Task } from "../models/Task.models.js";
 
 const adminLoginController = asyncHandler(async (req, res) => {
     const { username, password } = req.body;
+    console.log(username, password);
 
     if (!username) {
         throw new ApiError(400, "username is required");
@@ -19,11 +20,11 @@ const adminLoginController = asyncHandler(async (req, res) => {
         
     }
 
-    if (username !== process.env.ADMIN_NAME || password !== process.env.ADMIN_PASSWORD) {
-        throw new ApiError(400, "Invalid username or password");
+    if ((username.trim() !== process.env.ADMIN_NAME) || (password.trim() !== process.env.ADMIN_PASSWORD)) {
+        throw new ApiError(400, "Invalid username or password ");
     }
-    if (username === process.env.ADMIN_NAME && password === process.env.ADMIN_PASSWORD) {
-         
+    if (username.trim() === process.env.ADMIN_NAME && password.trim() === process.env.ADMIN_PASSWORD) {
+         console.log("Login successfull");
         const token = jwt.sign({ username: process.env.ADMIN_NAME }, process.env.ADMIN_JWT, { expiresIn: '1d' });
         const options = {
             httpOnly: true,
@@ -48,6 +49,7 @@ const adminLogoutController = asyncHandler(async (req, res) => {
 
 const registerUser = asyncHandler(async (req, res) => {
     const {name, email,role,mobileNumber} = req.body;
+    console.log(name, email,role,mobileNumber);
 
     if ([name, email,role, mobileNumber].some(field => field?.trim()==="" && !field)) {
         throw new ApiError(400, "All fields are required");
@@ -71,6 +73,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     const user = await User.findById(createdUser._id).select("-password -otp -refreshToken");
     sendUserRegistrationUser(user)
+    console.log("User created successfully and Email has been send to user", user);
     
     return res.status(201).json(new ApiResponse(201, user, "User created successfully and Email has been send to user"));
  
@@ -127,6 +130,9 @@ const deleteProfile = asyncHandler(async (req, res) => {
 
     const deletedUser = await User.findByIdAndDelete(user._id).select("-password -otp -refreshToken");
     deleteUserMail(user)
+
+    Task.deleteMany({createdBy: deletedUser._id})
+    Comment.deleteMany({commentBy: deletedUser._id})
     return res.status(200).json(new ApiResponse(200, deletedUser, "User deleted successfully"));
 
 
